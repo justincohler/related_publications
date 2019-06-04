@@ -1,5 +1,5 @@
 import scholarly
-
+import time
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -65,6 +65,8 @@ if __name__ == "__main__":
             session.rollback()
 
         count -= 1
+
+        time.sleep(2)
     
     session.close()
 
