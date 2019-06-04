@@ -51,6 +51,8 @@ def lemmatize(wordnet, sentence):
         new_sentence += wordnet.lemmatize(word) + " "
     
     return new_sentence.strip()
+
+
     
 if __name__ == "__main__":
 
@@ -66,39 +68,49 @@ if __name__ == "__main__":
     porter = PorterStemmer()
     wordnet = WordNetLemmatizer()
 
-    papers_df["cleaned"] = papers_df.abstract.apply(lambda x: porter.stem(x))
-    papers_df.cleaned = papers_df.cleaned.apply(lambda x: lemmatize(wordnet, x))
+    papers_df["tokens"] = papers_df.abstract.apply(lambda x: word_tokenize(lemmatize(wordnet, porter.stem(x))))
 
-    # Attribution to https://towardsdatascience.com/machine-learning-word-embedding-sentiment-classification-using-keras-b83c28087456
-    X_train = papers_df.loc[:400, 'cleaned'].values
-    y_train = papers_df.loc[:400, 'links'].values
-    X_test = papers_df.loc[400:, 'cleaned'].values
-    y_test = papers_df.loc[400:, 'links'].values
+    abstract_lines=papers_df.tokens.tolist()
+    
+    print(len(abstract_lines))
 
-    # Transform into Word Embedding
-    tokenizer = Tokenizer()
-    all_abstracts = np.hstack((X_train, X_test))
-    tokenizer.fit_on_texts(all_abstracts)
+    EMBEDDING_DIM = 100
 
-    max_length = max([len(s.split()) for s in all_abstracts])
+    model = gensim.models.Word2Vec(sentences=abstract_lines, size=EMBEDDING_DIM, window=5, workers=4, min_count=1)
 
-    vocab_size = len(tokenizer.word_index) + 1
+    words = list(model.wv.vocab)
+    print(f"Vocabulary size: {len(words)}")
 
-    # Tokenize
-    X_train = tokenizer.texts_to_sequences(X_train)
-    X_test = tokenizer.texts_to_sequences(X_test)
+    # # Attribution to https://towardsdatascience.com/machine-learning-word-embedding-sentiment-classification-using-keras-b83c28087456
+    # X_train = papers_df.loc[:400, 'tokens'].values
+    # y_train = papers_df.loc[:400, 'links'].values
+    # X_test = papers_df.loc[400:, 'tokens'].values
+    # y_test = papers_df.loc[400:, 'links'].values
 
-    # Pad
-    X_train = pad_sequences(X_train, maxlen=max_length, padding='post')
-    X_test = pad_sequences(X_test, maxlen=max_length, padding='post')
+    # # Transform into Word Embedding
+    # tokenizer = Tokenizer()
+    # all_abstracts = np.hstack((X_train, X_test))
+    # tokenizer.fit_on_texts(all_abstracts)
 
-    EMBEDDING_DIM = X_test.shape[1]
+    # max_length = max([len(s.split()) for s in all_abstracts])
 
-    model = Sequential()
-    model.add(Embedding(vocab_size, EMBEDDING_DIM, input_length=max_length))
-    model.add(GRU(units=32, dropout=0.1, recurrent_dropout=0.1))
-    model.add(Dense(1, activation='sigmoid'))
+    # vocab_size = len(tokenizer.word_index) + 1
 
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    # # Tokenize
+    # X_train = tokenizer.texts_to_sequences(X_train)
+    # X_test = tokenizer.texts_to_sequences(X_test)
 
-    model.fit(X_train, y_train, batch_size=32, epochs=25, validation_data=(X_test, y_test), verbose=2)
+    # # Pad
+    # X_train = pad_sequences(X_train, maxlen=max_length, padding='post')
+    # X_test = pad_sequences(X_test, maxlen=max_length, padding='post')
+
+    # EMBEDDING_DIM = X_test.shape[1]
+
+    # model = Sequential()
+    # model.add(Embedding(vocab_size, EMBEDDING_DIM, input_length=max_length))
+    # model.add(GRU(units=32, dropout=0.1, recurrent_dropout=0.1))
+    # model.add(Dense(1, activation='sigmoid'))
+
+    # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    # model.fit(X_train, y_train, batch_size=32, epochs=25, validation_data=(X_test, y_test), verbose=2)
