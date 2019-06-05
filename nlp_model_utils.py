@@ -42,21 +42,47 @@ import scholar
 from db import db_connect
 
 
-def lemmatize(wordnet, sentence):
+# Constants    
+EMBEDDING_DIM = 100
+
+def preprocess(porter: PorterStemmer, wordnet: WordNetLemmatizer, sentence: str) -> list:
+    """Return a stemmed, lemmatized, tokenized list of words for a given sentence.
+    
+    Arguments:
+        porter {PorterStemmer} -- The Porter Stemmer
+        wordnet {WordNetLemmatizer} -- WordNet Lemmatizer
+        sentence {str} -- Input sentence
+    
+    Returns:
+        list -- A list of cleaned words
+    """
     sentence = re.sub('[!?:.,;@#$]', '', sentence)
     words = nltk.word_tokenize(sentence)
-    
-    new_sentence = ""
-    for word in words:
-        new_sentence += wordnet.lemmatize(word) + " "
-    
-    return new_sentence.strip()
+    return [wordnet.lemmatize(word) for word in words]
 
-
+def import_word_embedding_model(filename: str) -> dict:
+    """Return word embedding dictionary from file.
+    
+    Arguments:
+        filename {str} -- The filename in the current directory
+    
+    Returns:
+        dict -- The word embedding dict to return
+    """
+    embeddings = {}
+    with open(os.path.join('', filename), encoding='utf-8') as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            coefs = np.asarray(values[1:])
+            embeddings[word] = coefs
+    return embeddings  
     
 if __name__ == "__main__":
 
-    # nltk.download('punkt')
+    # Read word embeddings
+    in_filename = "abstract_embedding_word2vec.txt"
+    embeddings = import_word_embedding_model(in_filename)
 
     # Read in raw data
     engine = db_connect()
@@ -64,24 +90,38 @@ if __name__ == "__main__":
     session = Session()
     papers_df = pd.read_sql_table("paper", engine)
 
-    # Preprocess text
     porter = PorterStemmer()
     wordnet = WordNetLemmatizer()
+    papers_df["tokens"] = papers_df.abstract.apply(lambda x: preprocess(porter, wordnet, x))
+    print("Preprocessed abstracts.")
 
-    papers_df["tokens"] = papers_df.abstract.apply(lambda x: word_tokenize(lemmatize(wordnet, porter.stem(x))))
 
-    abstract_lines=papers_df.tokens.tolist()
+    # Attribution to https://towardsdatascience.com/machine-learning-word-embedding-sentiment-classification-using-keras-b83c28087456
+    tokenizer = Tokenizer()
+    abstract_lines = papers_df.tokens.tolist()
+    tokenizer.fit_on_texts(abstract_lines)
+    sequences = tokenizer.texts_to_sequences(abstract_lines)
     
-    print(len(abstract_lines))
+    # Pad sequences
+    print(f"Found {len(tokenizer.word_index)} unique tokens.")
+    max_length = max([len(s) for s in abstract_lines])
+    abstract_vectors_padded = pad_sequences(sequences, maxlen=max_length)
 
-    EMBEDDING_DIM = 100
+    links = papers_df.links.values
 
-    model = gensim.models.Word2Vec(sentences=abstract_lines, size=EMBEDDING_DIM, window=5, workers=4, min_count=1)
+    print(f"Shape of abstract tensor: {abstract_vectors_padded.shape}")
+    print(f"Shape of links tensor: {links.shape}")
 
-    words = list(model.wv.vocab)
-    print(f"Vocabulary size: {len(words)}")
+    n_words = len(tokenizer.word_index) + 1
+    embedding_matrix = np.zeros((n_words, EMBEDDING_DIM))
 
-    # # Attribution to https://towardsdatascience.com/machine-learning-word-embedding-sentiment-classification-using-keras-b83c28087456
+    for word, i in tokenizer.word_index.items():
+        if i > n_words:
+            continue
+        if word in embeddings:
+            embedding_matrix[i] = embeddings[word]
+
+    print(n_words)
     # X_train = papers_df.loc[:400, 'tokens'].values
     # y_train = papers_df.loc[:400, 'links'].values
     # X_test = papers_df.loc[400:, 'tokens'].values
@@ -92,7 +132,6 @@ if __name__ == "__main__":
     # all_abstracts = np.hstack((X_train, X_test))
     # tokenizer.fit_on_texts(all_abstracts)
 
-    # max_length = max([len(s.split()) for s in all_abstracts])
 
     # vocab_size = len(tokenizer.word_index) + 1
 
