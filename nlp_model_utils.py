@@ -107,49 +107,34 @@ if __name__ == "__main__":
     max_length = max([len(s) for s in abstract_lines])
     abstract_vectors_padded = pad_sequences(sequences, maxlen=max_length)
 
-    links = papers_df.links.values
-
+    papers_df["links_pctile"] = pd.qcut(papers_df.links, 100, labels=[i for i in range(100)])
+    links = papers_df.links_pctile.values
+    
     print(f"Shape of abstract tensor: {abstract_vectors_padded.shape}")
     print(f"Shape of links tensor: {links.shape}")
 
-    n_words = len(tokenizer.word_index) + 1
-    embedding_matrix = np.zeros((n_words, EMBEDDING_DIM))
+    vocab_size = len(tokenizer.word_index) + 1
+    embedding_matrix = np.zeros((vocab_size, EMBEDDING_DIM))
 
     for word, i in tokenizer.word_index.items():
-        if i > n_words:
+        if i > vocab_size:
             continue
         if word in embeddings:
             embedding_matrix[i] = embeddings[word]
 
-    print(n_words)
-    # X_train = papers_df.loc[:400, 'tokens'].values
-    # y_train = papers_df.loc[:400, 'links'].values
-    # X_test = papers_df.loc[400:, 'tokens'].values
-    # y_test = papers_df.loc[400:, 'links'].values
+    print(vocab_size)
+    X_train = abstract_vectors_padded[:400]
+    y_train = links[:400]
+    X_test = abstract_vectors_padded[400:]
+    y_test = links[400:]
 
-    # # Transform into Word Embedding
-    # tokenizer = Tokenizer()
-    # all_abstracts = np.hstack((X_train, X_test))
-    # tokenizer.fit_on_texts(all_abstracts)
+    EMBEDDING_DIM = X_test.shape[1]
 
+    model = Sequential()
+    model.add(Embedding(vocab_size, EMBEDDING_DIM, input_length=max_length))
+    model.add(LSTM(500))
+    model.add(Dense(100, activation='softmax'))
 
-    # vocab_size = len(tokenizer.word_index) + 1
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-    # # Tokenize
-    # X_train = tokenizer.texts_to_sequences(X_train)
-    # X_test = tokenizer.texts_to_sequences(X_test)
-
-    # # Pad
-    # X_train = pad_sequences(X_train, maxlen=max_length, padding='post')
-    # X_test = pad_sequences(X_test, maxlen=max_length, padding='post')
-
-    # EMBEDDING_DIM = X_test.shape[1]
-
-    # model = Sequential()
-    # model.add(Embedding(vocab_size, EMBEDDING_DIM, input_length=max_length))
-    # model.add(GRU(units=32, dropout=0.1, recurrent_dropout=0.1))
-    # model.add(Dense(1, activation='sigmoid'))
-
-    # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-    # model.fit(X_train, y_train, batch_size=32, epochs=25, validation_data=(X_test, y_test), verbose=2)
+    model.fit(X_train, y_train, batch_size=32, epochs=25, validation_data=(X_test, y_test), verbose=2)
