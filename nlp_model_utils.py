@@ -107,10 +107,10 @@ if __name__ == "__main__":
     max_length = max([len(s) for s in abstract_lines])
     abstract_vectors_padded = pad_sequences(sequences, maxlen=max_length)
 
-    BUCKETS = 3
+    BUCKETS = 100
     papers_df["links_pctile"] = pd.qcut(papers_df.links, BUCKETS, labels=[i for i in range(BUCKETS)])
-    # links = papers_df.links_pctile.values
-    links = papers_df.links.values
+    links = papers_df.links_pctile.values
+    # links = papers_df.links.values
     
     print(f"Shape of abstract tensor: {abstract_vectors_padded.shape}")
     print(f"Shape of links tensor: {links.shape}")
@@ -125,10 +125,14 @@ if __name__ == "__main__":
             embedding_matrix[i] = embeddings[word]
 
     print(vocab_size)
-    X_train = abstract_vectors_padded[:400]
-    y_train = links[:400]
-    X_test = abstract_vectors_padded[400:]
-    y_test = links[400:]
+
+    train_test_split = 0.7
+    split_index = int(len(links)*train_test_split)
+
+    X_train = abstract_vectors_padded[:split_index]
+    y_train = links[:split_index]
+    X_test = abstract_vectors_padded[split_index:]
+    y_test = links[split_index:]
 
     EMBEDDING_DIM = X_train.shape[1]
 
@@ -136,34 +140,34 @@ if __name__ == "__main__":
     model_cont.add(Embedding(input_dim=vocab_size, output_dim=EMBEDDING_DIM, input_length=max_length))
     model_cont.add(Flatten())
     model_cont.add(Dense(512, activation='relu'))
-    model_cont.add(Dropout(0.3))
+    # model_cont.add(Dropout(0.5))
     model_cont.add(Dense(256, activation='relu'))
-    model_cont.add(Dropout(0.3))
+    # model_cont.add(Dropout(0.5))
     model_cont.add(Dense(128, activation='relu'))
-    model_cont.add(Dropout(0.3))
+    # model_cont.add(Dropout(0.5))
     model_cont.add(Dense(64, activation='relu'))
-    model_cont.add(Dropout(0.3))
+    # model_cont.add(Dropout(0.5))
     model_cont.add(Dense(1))
     print(model_cont.summary())
 
-    model_cont.compile(loss='mse', optimizer='adam', metrics=['mse', 'mae', 'mape', 'cosine'])
+    model_cont.compile(loss='mse', optimizer='adam', metrics=['mse', 'mae'])
     model_cont.fit(X_train, y_train, batch_size=32, epochs=50, validation_data=(X_test, y_test), verbose=2)
 
 
 
     # Categorical Model
-    model_cat = Sequential()
-    model_cat.add(Embedding(input_dim=vocab_size, output_dim=EMBEDDING_DIM, input_length=max_length))
-    model_cat.add(Flatten())
-    model_cat.add(Dense(512, activation='relu'))
-    model_cat.add(Dropout(0.3))
-    model_cat.add(Dense(256, activation='relu'))
-    model_cat.add(Dropout(0.3))
-    model_cat.add(Dense(128, activation='relu'))
-    model_cat.add(Dropout(0.3))
-    model_cat.add(Dense(64, activation='relu'))
-    model_cat.add(Dropout(0.3))
-    model_cat.add(Dense(1))
-    print(model_cat.summary())
+    # model_cat = Sequential()
+    # model_cat.add(Embedding(input_dim=vocab_size, output_dim=EMBEDDING_DIM, input_length=max_length))
+    # model_cat.add(Flatten())
+    # model_cat.add(Dense(512, activation='relu'))
+    # model_cat.add(Dropout(0.3))
+    # model_cat.add(Dense(256, activation='relu'))
+    # model_cat.add(Dropout(0.3))
+    # model_cat.add(Dense(128, activation='relu'))
+    # model_cat.add(Dropout(0.3))
+    # model_cat.add(Dense(64, activation='relu'))
+    # model_cat.add(Dropout(0.3))
+    # model_cat.add(Dense(1))
+    # print(model_cat.summary())
 
-    model_cat.compile(loss='sparse_categorical_crossentropy', optimizer='nadam', metrics=['accuracy'])
+    # model_cat.compile(loss='sparse_categorical_crossentropy', optimizer='nadam', metrics=['accuracy'])

@@ -18,6 +18,7 @@ from nltk.corpus import stopwords
 
 import gensim
 from gensim.models import Word2Vec
+from gensim.similarities.index import AnnoyIndexer
 
 # My Modules
 from db import db_connect
@@ -49,3 +50,10 @@ if __name__ == "__main__":
     out_filename = "abstract_embedding_word2vec.txt"
     model.wv.save_word2vec_format(out_filename)
     print(f"Saved embedding model to {out_filename}")
+
+    indexer = AnnoyIndexer(model, 2)
+    for word in ["gauss", "education", "machine", "learn", "robot"]:
+        try:
+            print(f"{word}: {model.most_similar(word, topn=5, indexer=indexer)}")
+        except:
+            pass
