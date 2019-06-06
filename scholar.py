@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from db import db_connect
+import random
 
 Base = declarative_base()
 
@@ -42,7 +43,8 @@ if __name__ == "__main__":
     session = Session()
 
     # for search_term in ["Early Childhood Development", "Nature Conservation", "Machine Learning"]:
-    search_query = scholarly.search_pubs_query('Machine Learning')
+    search_term = 'Gauss'
+    search_query = scholarly.search_pubs_query(search_term)
 
     count = 10000
     for i, res in enumerate(search_query):
@@ -65,8 +67,8 @@ if __name__ == "__main__":
             session.rollback()
 
         count -= 1
-
-        time.sleep(2)
+        # time.sleep(1.5)
+        # time.sleep(3.0 + random.random()*3)
     
     session.close()
 
